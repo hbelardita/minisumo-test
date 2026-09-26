@@ -42,14 +42,14 @@ void test_ultrasonic_trigger_pulse() {
     std::cout << "[PASS] test_ultrasonic_trigger_pulse\n";
 }
 
-void test_ultrasonic_valid_echo_target() {
+void test_ultrasonic_valid_echo_opponent() {
     mockState.reset();
     ultrasonicInit();
 
-    // Trigger ping at t=0
+    // Ping at t=0
     ultrasonicTriggerPing();
 
-    // Target at 20 cm -> echo pulse is 20 * 58 = 1160 us
+    // Opponent at 20 cm -> echo pulse is 20 * 58 = 1160 us
     mockState.currentMicros = 500; // 500 us after trigger
     simulateEchoPulse(1160);
 
@@ -57,7 +57,7 @@ void test_ultrasonic_valid_echo_target() {
 
     assert(ultrasonicHasOpponent() == true);
     assert(ultrasonicGetDistance() == 20);
-    std::cout << "[PASS] test_ultrasonic_valid_echo_target\n";
+    std::cout << "[PASS] test_ultrasonic_valid_echo_opponent\n";
 }
 
 void test_ultrasonic_max_range_boundary() {
@@ -79,7 +79,7 @@ void test_ultrasonic_filter_beyond_65cm() {
     mockState.reset();
     ultrasonicInit();
 
-    // Target beyond 65 cm (e.g. 66 cm -> 66 * 58 = 3828 us)
+    // Opponent beyond 65 cm (e.g. 66 cm -> 66 * 58 = 3828 us)
     ultrasonicTriggerPing();
     mockState.currentMicros = 200;
     simulateEchoPulse(3828);
@@ -88,7 +88,7 @@ void test_ultrasonic_filter_beyond_65cm() {
     assert(ultrasonicHasOpponent() == false);
     assert(ultrasonicGetDistance() == NO_OPPONENT);
 
-    // Target at 100 cm (5800 us)
+    // Opponent at 100 cm (5800 us)
     ultrasonicTriggerPing();
     mockState.currentMicros = 10000;
     simulateEchoPulse(5800);
@@ -99,11 +99,11 @@ void test_ultrasonic_filter_beyond_65cm() {
     std::cout << "[PASS] test_ultrasonic_filter_beyond_65cm\n";
 }
 
-void test_ultrasonic_timeout_filters_no_target() {
+void test_ultrasonic_timeout_filters_no_opponent() {
     mockState.reset();
     ultrasonicInit();
 
-    // First detect a valid target at 15 cm
+    // First detect a valid Opponent at 15 cm
     ultrasonicTriggerPing();
     mockState.currentMicros = 100;
     simulateEchoPulse(15 * 58);
@@ -123,7 +123,7 @@ void test_ultrasonic_timeout_filters_no_target() {
 
     assert(ultrasonicHasOpponent() == false);
     assert(ultrasonicGetDistance() == NO_OPPONENT);
-    std::cout << "[PASS] test_ultrasonic_timeout_filters_no_target\n";
+    std::cout << "[PASS] test_ultrasonic_timeout_filters_no_opponent\n";
 }
 
 void test_ultrasonic_periodic_scheduling() {
@@ -150,10 +150,10 @@ int main() {
     std::cout << "--- Running Ultrasonic Sensor Unit Tests ---\n";
     test_ultrasonic_init();
     test_ultrasonic_trigger_pulse();
-    test_ultrasonic_valid_echo_target();
+    test_ultrasonic_valid_echo_opponent();
     test_ultrasonic_max_range_boundary();
     test_ultrasonic_filter_beyond_65cm();
-    test_ultrasonic_timeout_filters_no_target();
+    test_ultrasonic_timeout_filters_no_opponent();
     test_ultrasonic_periodic_scheduling();
     std::cout << "All ultrasonic tests passed successfully!\n";
     return 0;

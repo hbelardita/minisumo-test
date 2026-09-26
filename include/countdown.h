@@ -24,11 +24,6 @@ void countdownInit(void);
 void countdownStart(void);
 
 /**
- * Reset countdown to idle state with LED OFF.
- */
-void countdownReset(void);
-
-/**
  * Non-blocking loop update: checks button trigger, tracks remaining time,
  * toggles LED at 1 Hz during countdown, and drives LED solid ON upon completion.
  */

@@ -77,10 +77,12 @@ void ultrasonicUpdate(void) {
     unsigned long now = millis();
 
     if (s_newEchoReady) {
+        noInterrupts();
         s_newEchoReady = false;
         s_waitingForEcho = false;
-
         unsigned long duration = s_pulseDurationUs;
+        interrupts();
+
         int dist = (int)(duration / 58UL);
 
         if (dist > 0 && dist <= ULTRASONIC_MAX_DISTANCE_CM) {

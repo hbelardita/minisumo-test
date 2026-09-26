@@ -6,24 +6,28 @@
 #include "pins.h"
 #include "line_sensors.h"
 
+static inline bool isBorderValue(int adcValue) {
+    return adcValue < BORDER_THRESHOLD;
+}
+
 void lineSensorsInit(void) {
     pinMode(PIN_TCRT_LEFT, INPUT);
     pinMode(PIN_TCRT_RIGHT, INPUT);
 }
 
 bool lineSensorLeftIsBorder(void) {
-    return analogRead(PIN_TCRT_LEFT) < BORDER_THRESHOLD;
+    return isBorderValue(analogRead(PIN_TCRT_LEFT));
 }
 
 bool lineSensorRightIsBorder(void) {
-    return analogRead(PIN_TCRT_RIGHT) < BORDER_THRESHOLD;
+    return isBorderValue(analogRead(PIN_TCRT_RIGHT));
 }
 
 LineSensorsReading lineSensorsRead(void) {
     LineSensorsReading reading;
     reading.leftRaw = analogRead(PIN_TCRT_LEFT);
     reading.rightRaw = analogRead(PIN_TCRT_RIGHT);
-    reading.leftBorder = (reading.leftRaw < BORDER_THRESHOLD);
-    reading.rightBorder = (reading.rightRaw < BORDER_THRESHOLD);
+    reading.leftBorder = isBorderValue(reading.leftRaw);
+    reading.rightBorder = isBorderValue(reading.rightRaw);
     return reading;
 }

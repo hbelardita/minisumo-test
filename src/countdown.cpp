@@ -25,12 +25,6 @@ void countdownStart(void) {
     }
 }
 
-void countdownReset(void) {
-    s_state = COUNTDOWN_IDLE;
-    s_startTimestamp = 0;
-    digitalWrite(PIN_LED, LOW);
-}
-
 void countdownUpdate(void) {
     if (s_state == COUNTDOWN_IDLE) {
         if (digitalRead(PIN_BUTTON) == LOW) {

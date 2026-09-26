@@ -49,6 +49,9 @@ inline uint8_t PCMSK0 = 0;
 #define ISR(vector) void vector(void)
 #endif
 
+inline void noInterrupts() {}
+inline void interrupts() {}
+
 inline void pinMode(uint8_t pin, uint8_t mode) {
     mockState.pinModes[pin] = mode;
 }
