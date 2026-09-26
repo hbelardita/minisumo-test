@@ -6,6 +6,35 @@
 #include "pins.h"
 #include "motors.h"
 
+static void setChannelSpeed(uint8_t in1Pin, uint8_t in2Pin, uint8_t pwmPin, int speed) {
+    if (speed == 0) {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, LOW);
+        analogWrite(pwmPin, 0);
+        return;
+    }
+
+    // In physical wiring, inverted polarity maps to forward motion
+    int invertedSpeed = -speed;
+    int pwmDuty = 0;
+
+    if (invertedSpeed > 0) {
+        digitalWrite(in1Pin, HIGH);
+        digitalWrite(in2Pin, LOW);
+        pwmDuty = invertedSpeed;
+    } else {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, HIGH);
+        pwmDuty = -invertedSpeed;
+    }
+
+    if (pwmDuty > 255) {
+        pwmDuty = 255;
+    }
+
+    analogWrite(pwmPin, pwmDuty);
+}
+
 void motorsInit(void) {
     pinMode(PIN_STBY, OUTPUT);
     pinMode(PIN_AIN1, OUTPUT);
@@ -47,40 +76,8 @@ void motorsSetSpeed(int leftSpeed, int rightSpeed) {
     digitalWrite(PIN_STBY, HIGH);
 
     // Channel A: Right Motor
-    // In physical wiring, negative speed maps to forward motion
-    int speedA = -rightSpeed;
-    if (speedA > 0) {
-        digitalWrite(PIN_AIN1, HIGH);
-        digitalWrite(PIN_AIN2, LOW);
-    } else if (speedA < 0) {
-        digitalWrite(PIN_AIN1, LOW);
-        digitalWrite(PIN_AIN2, HIGH);
-        speedA = -speedA;
-    } else {
-        digitalWrite(PIN_AIN1, LOW);
-        digitalWrite(PIN_AIN2, LOW);
-        speedA = 0;
-    }
+    setChannelSpeed(PIN_AIN1, PIN_AIN2, PIN_PWMA, rightSpeed);
 
     // Channel B: Left Motor
-    // In physical wiring, negative speed maps to forward motion
-    int speedB = -leftSpeed;
-    if (speedB > 0) {
-        digitalWrite(PIN_BIN1, HIGH);
-        digitalWrite(PIN_BIN2, LOW);
-    } else if (speedB < 0) {
-        digitalWrite(PIN_BIN1, LOW);
-        digitalWrite(PIN_BIN2, HIGH);
-        speedB = -speedB;
-    } else {
-        digitalWrite(PIN_BIN1, LOW);
-        digitalWrite(PIN_BIN2, LOW);
-        speedB = 0;
-    }
-
-    if (speedA > 255) speedA = 255;
-    if (speedB > 255) speedB = 255;
-
-    analogWrite(PIN_PWMA, speedA);
-    analogWrite(PIN_PWMB, speedB);
+    setChannelSpeed(PIN_BIN1, PIN_BIN2, PIN_PWMB, leftSpeed);
 }
