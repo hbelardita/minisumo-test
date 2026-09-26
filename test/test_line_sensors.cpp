@@ -47,12 +47,45 @@ void test_line_sensors_white_border_threshold() {
     assert(lineSensorLeftIsBorder() == true);
     assert(lineSensorRightIsBorder() == true);
 
-    // Exact threshold boundary: 400 is not border (< 400 is border)
+    // Clear border state first (> 450)
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 500;
+    mockState.analogReadValues[PIN_TCRT_RIGHT] = 500;
+    assert(lineSensorLeftIsBorder() == false);
+    assert(lineSensorRightIsBorder() == false);
+
+    // Exact threshold boundary from Dohyo: 400 is not border (< 400 is border)
     mockState.analogReadValues[PIN_TCRT_LEFT] = 400;
     mockState.analogReadValues[PIN_TCRT_RIGHT] = 400;
     assert(lineSensorLeftIsBorder() == false);
     assert(lineSensorRightIsBorder() == false);
     std::cout << "[PASS] test_line_sensors_white_border_threshold\n";
+}
+
+void test_line_sensors_hysteresis() {
+    mockState.reset();
+    lineSensorsInit();
+
+    // Start on Dohyo (600)
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 600;
+    assert(lineSensorLeftIsBorder() == false);
+
+    // Cross onto Border (350 < 400)
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 350;
+    assert(lineSensorLeftIsBorder() == true);
+
+    // Sensor reading chatters to 420 (between 400 and 450): must stay in border state
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 420;
+    assert(lineSensorLeftIsBorder() == true);
+
+    // Sensor returns cleanly to Dohyo (460 >= 450): border state clears
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 460;
+    assert(lineSensorLeftIsBorder() == false);
+
+    // Sensor jitters down to 420 from Dohyo: does NOT re-trigger border until < 400
+    mockState.analogReadValues[PIN_TCRT_LEFT] = 420;
+    assert(lineSensorLeftIsBorder() == false);
+
+    std::cout << "[PASS] test_line_sensors_hysteresis\n";
 }
 
 void test_line_sensors_independent_readings() {
@@ -82,6 +115,7 @@ int main() {
     test_line_sensors_init();
     test_line_sensors_dohyo_black_surface();
     test_line_sensors_white_border_threshold();
+    test_line_sensors_hysteresis();
     test_line_sensors_independent_readings();
     std::cout << "All line sensor tests passed successfully!\n";
     return 0;

@@ -15,5 +15,6 @@ void setup() {
 void loop() {
     countdownUpdate();
     ultrasonicUpdate();
+    lineSensorsRead();
     // Ticket 03 connects the combat FSM logic
 }

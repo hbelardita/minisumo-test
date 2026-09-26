@@ -60,6 +60,24 @@ void test_ultrasonic_valid_echo_opponent() {
     std::cout << "[PASS] test_ultrasonic_valid_echo_opponent\n";
 }
 
+void test_ultrasonic_point_blank_opponent() {
+    mockState.reset();
+    ultrasonicInit();
+
+    // Ping at t=0
+    ultrasonicTriggerPing();
+
+    // Opponent in head-to-head contact (< 1 cm, e.g. 40 us pulse duration -> 0 cm)
+    mockState.currentMicros = 100;
+    simulateEchoPulse(40);
+
+    ultrasonicUpdate();
+
+    assert(ultrasonicHasOpponent() == true);
+    assert(ultrasonicGetDistance() == 0);
+    std::cout << "[PASS] test_ultrasonic_point_blank_opponent\n";
+}
+
 void test_ultrasonic_max_range_boundary() {
     mockState.reset();
     ultrasonicInit();
@@ -151,6 +169,7 @@ int main() {
     test_ultrasonic_init();
     test_ultrasonic_trigger_pulse();
     test_ultrasonic_valid_echo_opponent();
+    test_ultrasonic_point_blank_opponent();
     test_ultrasonic_max_range_boundary();
     test_ultrasonic_filter_beyond_65cm();
     test_ultrasonic_timeout_filters_no_opponent();

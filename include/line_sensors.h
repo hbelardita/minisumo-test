@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define BORDER_THRESHOLD 400
+#define BORDER_EXIT_THRESHOLD 450
 
 struct LineSensorsReading {
     bool leftBorder;

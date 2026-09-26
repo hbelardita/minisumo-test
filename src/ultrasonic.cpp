@@ -14,7 +14,7 @@ static volatile bool s_echoActive = false;
 static volatile bool s_newEchoReady = false;
 
 static unsigned long s_lastPingMs = 0;
-static bool s_hasPinged = false;
+static bool s_initialPingTriggered = false;
 static bool s_waitingForEcho = false;
 static int s_currentDistance = NO_OPPONENT;
 static bool s_hasOpponent = false;
@@ -30,7 +30,7 @@ void ultrasonicInit(void) {
     s_newEchoReady = false;
 
     s_lastPingMs = 0;
-    s_hasPinged = false;
+    s_initialPingTriggered = false;
     s_waitingForEcho = false;
     s_currentDistance = NO_OPPONENT;
     s_hasOpponent = false;
@@ -48,7 +48,7 @@ void ultrasonicTriggerPing(void) {
     digitalWrite(PIN_TRIG, LOW);
 
     s_lastPingMs = millis();
-    s_hasPinged = true;
+    s_initialPingTriggered = true;
     s_waitingForEcho = true;
     s_echoActive = false;
 }
@@ -85,7 +85,7 @@ void ultrasonicUpdate(void) {
 
         int dist = (int)(duration / 58UL);
 
-        if (dist > 0 && dist <= ULTRASONIC_MAX_DISTANCE_CM) {
+        if (dist >= 0 && dist <= ULTRASONIC_MAX_DISTANCE_CM) {
             s_currentDistance = dist;
             s_hasOpponent = true;
         } else {
@@ -98,7 +98,7 @@ void ultrasonicUpdate(void) {
         s_hasOpponent = false;
     }
 
-    if (!s_hasPinged || (now - s_lastPingMs >= ULTRASONIC_PING_INTERVAL_MS)) {
+    if (!s_initialPingTriggered || (now - s_lastPingMs >= ULTRASONIC_PING_INTERVAL_MS)) {
         ultrasonicTriggerPing();
     }
 }
