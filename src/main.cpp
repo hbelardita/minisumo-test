@@ -1,11 +1,19 @@
 #include <Arduino.h>
 #include "pins.h"
 #include "motors.h"
+#include "line_sensors.h"
+#include "ultrasonic.h"
+#include "countdown.h"
 
 void setup() {
     motorsInit();
+    lineSensorsInit();
+    ultrasonicInit();
+    countdownInit();
 }
 
 void loop() {
-    // Placeholder for ticket 02 and 03
+    countdownUpdate();
+    ultrasonicUpdate();
+    // Ticket 03 connects the combat FSM logic
 }

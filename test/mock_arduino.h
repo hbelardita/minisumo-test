@@ -25,15 +25,29 @@ struct ArduinoMockState {
     std::map<uint8_t, uint8_t> pinModes;
     std::map<uint8_t, uint8_t> digitalPins;
     std::map<uint8_t, int> analogPins;
+    std::map<uint8_t, int> analogReadValues;
+    unsigned long currentMillis = 0;
+    unsigned long currentMicros = 0;
 
     void reset() {
         pinModes.clear();
         digitalPins.clear();
         analogPins.clear();
+        analogReadValues.clear();
+        currentMillis = 0;
+        currentMicros = 0;
     }
 };
 
 extern ArduinoMockState mockState;
+
+#ifndef __AVR__
+inline uint8_t PCICR = 0;
+inline uint8_t PCMSK0 = 0;
+#define PCIE0 0
+#define PCINT4 4
+#define ISR(vector) void vector(void)
+#endif
 
 inline void pinMode(uint8_t pin, uint8_t mode) {
     mockState.pinModes[pin] = mode;
@@ -49,6 +63,22 @@ inline int digitalRead(uint8_t pin) {
 
 inline void analogWrite(uint8_t pin, int val) {
     mockState.analogPins[pin] = val;
+}
+
+inline int analogRead(uint8_t pin) {
+    return mockState.analogReadValues[pin];
+}
+
+inline unsigned long millis() {
+    return mockState.currentMillis;
+}
+
+inline unsigned long micros() {
+    return mockState.currentMicros;
+}
+
+inline void delayMicroseconds(unsigned int us) {
+    mockState.currentMicros += us;
 }
 
 #endif // MOCK_ARDUINO_H
