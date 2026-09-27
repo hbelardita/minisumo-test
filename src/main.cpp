@@ -4,17 +4,18 @@
 #include "line_sensors.h"
 #include "ultrasonic.h"
 #include "countdown.h"
+#include "fsm.h"
 
 void setup() {
     motorsInit();
     lineSensorsInit();
     ultrasonicInit();
     countdownInit();
+    fsmInit();
 }
 
 void loop() {
     countdownUpdate();
     ultrasonicUpdate();
-    lineSensorsRead();
-    // Ticket 03 connects the combat FSM logic
+    fsmUpdate();
 }
