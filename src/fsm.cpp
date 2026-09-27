@@ -11,30 +11,35 @@
 #endif
 
 static MatchState currentState = STATE_IDLE;
-static BorderAvoidPhase avoidPhase = AVOID_COAST;
+static BorderAvoidancePhase avoidPhase = BORDER_AVOIDANCE_COAST;
 static unsigned long avoidPhaseStartTime = 0;
-static bool latchedLeftBorder = false;
-static bool latchedRightBorder = false;
+static LineSensorsReading latchedBorders = {false, false, 0, 0};
 
 static void applyAvoidancePivot(void) {
-    if (latchedLeftBorder && latchedRightBorder) {
-        // Spin 180 degrees (both sensors hit)
-        motorsSetSpeed(AVOID_PIVOT_PWM, -AVOID_PIVOT_PWM);
-    } else if (latchedLeftBorder) {
-        // Left sensor -> Turn right
+    if (latchedBorders.leftBorder) {
+        // Left sensor triggered (or both) -> Turn right / spin 180 (left forward, right reverse)
         motorsSetSpeed(AVOID_PIVOT_PWM, -AVOID_PIVOT_PWM);
     } else {
-        // Right sensor -> Turn left
+        // Right sensor triggered -> Turn left (left reverse, right forward)
         motorsSetSpeed(-AVOID_PIVOT_PWM, AVOID_PIVOT_PWM);
     }
 }
 
+static bool isOpponentLost(int dist) {
+    return dist == NO_OPPONENT || dist > OPPONENT_APPROACH_MAX_CM;
+}
+
+static void transitionToSearch(void) {
+    currentState = STATE_SEARCH;
+    motorsSetSpeed(PIVOT_SCAN_PWM, -PIVOT_SCAN_PWM);
+}
+
 void fsmInit(void) {
     currentState = STATE_IDLE;
-    avoidPhase = AVOID_COAST;
+    avoidPhase = BORDER_AVOIDANCE_COAST;
     avoidPhaseStartTime = 0;
-    latchedLeftBorder = false;
-    latchedRightBorder = false;
+    latchedBorders.leftBorder = false;
+    latchedBorders.rightBorder = false;
     motorsCoast();
 }
 
@@ -42,7 +47,7 @@ MatchState fsmGetState(void) {
     return currentState;
 }
 
-BorderAvoidPhase fsmGetBorderAvoidPhase(void) {
+BorderAvoidancePhase fsmGetBorderAvoidancePhase(void) {
     return avoidPhase;
 }
 
@@ -50,12 +55,11 @@ void fsmSetState(MatchState state) {
     currentState = state;
 }
 
-static void triggerBorderAvoid(bool left, bool right) {
-    currentState = STATE_BORDER_AVOID;
-    avoidPhase = AVOID_COAST;
+static void triggerBorderAvoidance(LineSensorsReading lines) {
+    currentState = STATE_BORDER_AVOIDANCE;
+    avoidPhase = BORDER_AVOIDANCE_COAST;
     avoidPhaseStartTime = millis();
-    latchedLeftBorder = left;
-    latchedRightBorder = right;
+    latchedBorders = lines;
     motorsCoast();
 }
 
@@ -65,7 +69,7 @@ void fsmUpdate(void) {
     // High-priority border avoidance preemption during active match states
     if (currentState == STATE_SEARCH || currentState == STATE_APPROACH || currentState == STATE_ATTACK) {
         if (lines.leftBorder || lines.rightBorder) {
-            triggerBorderAvoid(lines.leftBorder, lines.rightBorder);
+            triggerBorderAvoidance(lines);
             return;
         }
     }
@@ -87,9 +91,14 @@ void fsmUpdate(void) {
 
         case STATE_SEARCH: {
             int dist = ultrasonicGetDistance();
-            if (dist >= 0 && dist <= OPPONENT_APPROACH_MAX_CM) {
-                currentState = STATE_APPROACH;
-                motorsSetSpeed(APPROACH_PWM, APPROACH_PWM);
+            if (dist != NO_OPPONENT && dist <= OPPONENT_APPROACH_MAX_CM) {
+                if (dist <= OPPONENT_ATTACK_MAX_CM) {
+                    currentState = STATE_ATTACK;
+                    motorsSetSpeed(ATTACK_PWM, ATTACK_PWM);
+                } else {
+                    currentState = STATE_APPROACH;
+                    motorsSetSpeed(APPROACH_PWM, APPROACH_PWM);
+                }
             } else {
                 motorsSetSpeed(PIVOT_SCAN_PWM, -PIVOT_SCAN_PWM);
             }
@@ -98,10 +107,9 @@ void fsmUpdate(void) {
 
         case STATE_APPROACH: {
             int dist = ultrasonicGetDistance();
-            if (dist < 0 || dist > OPPONENT_APPROACH_MAX_CM) {
-                currentState = STATE_SEARCH;
-                motorsSetSpeed(PIVOT_SCAN_PWM, -PIVOT_SCAN_PWM);
-            } else if (dist < OPPONENT_ATTACK_MAX_CM) {
+            if (isOpponentLost(dist)) {
+                transitionToSearch();
+            } else if (dist <= OPPONENT_ATTACK_MAX_CM) {
                 currentState = STATE_ATTACK;
                 motorsSetSpeed(ATTACK_PWM, ATTACK_PWM);
             } else {
@@ -112,40 +120,36 @@ void fsmUpdate(void) {
 
         case STATE_ATTACK: {
             int dist = ultrasonicGetDistance();
-            if (dist < 0 || dist > OPPONENT_APPROACH_MAX_CM) {
-                currentState = STATE_SEARCH;
-                motorsSetSpeed(PIVOT_SCAN_PWM, -PIVOT_SCAN_PWM);
-            } else if (dist >= OPPONENT_ATTACK_MAX_CM) {
-                currentState = STATE_APPROACH;
-                motorsSetSpeed(APPROACH_PWM, APPROACH_PWM);
+            if (isOpponentLost(dist)) {
+                transitionToSearch();
             } else {
                 motorsSetSpeed(ATTACK_PWM, ATTACK_PWM);
             }
             break;
         }
 
-        case STATE_BORDER_AVOID: {
+        case STATE_BORDER_AVOIDANCE: {
             unsigned long elapsed = millis() - avoidPhaseStartTime;
             switch (avoidPhase) {
-                case AVOID_COAST:
+                case BORDER_AVOIDANCE_COAST:
                     motorsCoast();
                     if (elapsed >= BORDER_COAST_DURATION_MS) {
-                        avoidPhase = AVOID_REVERSE;
+                        avoidPhase = BORDER_AVOIDANCE_REVERSE;
                         avoidPhaseStartTime = millis();
                         motorsSetSpeed(-AVOID_REVERSE_PWM, -AVOID_REVERSE_PWM);
                     }
                     break;
 
-                case AVOID_REVERSE:
+                case BORDER_AVOIDANCE_REVERSE:
                     motorsSetSpeed(-AVOID_REVERSE_PWM, -AVOID_REVERSE_PWM);
                     if (elapsed >= BORDER_REVERSE_DURATION_MS) {
-                        avoidPhase = AVOID_PIVOT;
+                        avoidPhase = BORDER_AVOIDANCE_PIVOT;
                         avoidPhaseStartTime = millis();
                         applyAvoidancePivot();
                     }
                     break;
 
-                case AVOID_PIVOT:
+                case BORDER_AVOIDANCE_PIVOT:
                     applyAvoidancePivot();
                     if (elapsed >= BORDER_PIVOT_DURATION_MS) {
                         currentState = STATE_SEARCH;

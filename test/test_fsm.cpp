@@ -144,28 +144,34 @@ void test_fsm_approach_to_attack_and_transitions() {
     assert(mockState.digitalPins[PIN_BIN1] == LOW);
     assert(mockState.digitalPins[PIN_BIN2] == HIGH);
 
-    // Opponent backs away to 40 cm (between 30 and 65) -> transitions to APPROACH
+    // Opponent distance remains within engagement (< 65 cm), say 40 cm -> robot stays in ATTACK
     mockState.currentMicros += 50000;
     simulateUltrasonicDistance(40);
     assert(ultrasonicGetDistance() == 40);
 
     fsmUpdate();
-    assert(fsmGetState() == STATE_APPROACH);
-    assert(mockState.analogPins[PIN_PWMA] == 150);
-    assert(mockState.analogPins[PIN_PWMB] == 150);
+    assert(fsmGetState() == STATE_ATTACK);
+    assert(mockState.analogPins[PIN_PWMA] == 255);
+    assert(mockState.analogPins[PIN_PWMB] == 255);
 
-    // Opponent jumps directly to 10 cm from SEARCH -> transitions to APPROACH first then ATTACK
+    // Opponent jumps directly to 10 cm from SEARCH -> transitions directly to ATTACK
     fsmSetState(STATE_SEARCH);
     mockState.currentMicros += 50000;
     simulateUltrasonicDistance(10);
     assert(ultrasonicGetDistance() == 10);
 
     fsmUpdate();
-    assert(fsmGetState() == STATE_APPROACH);
-    fsmUpdate();
     assert(fsmGetState() == STATE_ATTACK);
     assert(mockState.analogPins[PIN_PWMA] == 255);
     assert(mockState.analogPins[PIN_PWMB] == 255);
+
+    // Opponent at boundary of 30 cm triggers ATTACK from APPROACH
+    fsmSetState(STATE_APPROACH);
+    mockState.currentMicros += 50000;
+    simulateUltrasonicDistance(30);
+    assert(ultrasonicGetDistance() == 30);
+    fsmUpdate();
+    assert(fsmGetState() == STATE_ATTACK);
 
     // Opponent lost completely while in ATTACK -> reverts to SEARCH
     mockState.currentMillis += 50;
@@ -194,8 +200,8 @@ void test_fsm_border_avoid_preemption_and_sequence_left() {
 
     fsmUpdate();
     // Preempts attack immediately
-    assert(fsmGetState() == STATE_BORDER_AVOID);
-    assert(fsmGetBorderAvoidPhase() == AVOID_COAST);
+    assert(fsmGetState() == STATE_BORDER_AVOIDANCE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_COAST);
     // Coast phase: TB6612 standby LOW, all outputs 0
     assert(mockState.digitalPins[PIN_STBY] == LOW);
     assert(mockState.analogPins[PIN_PWMA] == 0);
@@ -204,13 +210,13 @@ void test_fsm_border_avoid_preemption_and_sequence_left() {
     // 39 ms later: still coasting
     mockState.currentMillis = 1039;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_COAST);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_COAST);
     assert(mockState.digitalPins[PIN_STBY] == LOW);
 
-    // 40 ms after trigger (1040 ms): transitions to AVOID_REVERSE
+    // 40 ms after trigger (1040 ms): transitions to BORDER_AVOIDANCE_REVERSE
     mockState.currentMillis = 1040;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_REVERSE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_REVERSE);
     assert(mockState.digitalPins[PIN_STBY] == HIGH);
     // Reverse full power (-255, -255)
     // Right motor reverse: AIN1=HIGH, AIN2=LOW, PWMA=255
@@ -225,13 +231,13 @@ void test_fsm_border_avoid_preemption_and_sequence_left() {
     // 339 ms after trigger (299 ms into reverse): still reversing
     mockState.currentMillis = 1339;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_REVERSE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_REVERSE);
 
-    // 340 ms after trigger (40 + 300 ms): transitions to AVOID_PIVOT
+    // 340 ms after trigger (40 + 300 ms): transitions to BORDER_AVOIDANCE_PIVOT
     // Since left sensor triggered, turn right: left forward (+200), right reverse (-200)
     mockState.currentMillis = 1340;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_PIVOT);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_PIVOT);
     assert(mockState.digitalPins[PIN_STBY] == HIGH);
     // Left motor forward: 200, BIN1=LOW, BIN2=HIGH
     assert(mockState.analogPins[PIN_PWMB] == 200);
@@ -245,7 +251,7 @@ void test_fsm_border_avoid_preemption_and_sequence_left() {
     // 559 ms after trigger: still pivoting
     mockState.currentMillis = 1559;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_PIVOT);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_PIVOT);
 
     // 560 ms after trigger (40 + 300 + 220 ms): completes avoidance and returns to STATE_SEARCH
     // Sensor is back on Dohyo
@@ -268,18 +274,18 @@ void test_fsm_border_avoid_right_sensor_turns_left() {
     mockState.analogReadValues[PIN_TCRT_RIGHT] = 150;
 
     fsmUpdate();
-    assert(fsmGetState() == STATE_BORDER_AVOID);
-    assert(fsmGetBorderAvoidPhase() == AVOID_COAST);
+    assert(fsmGetState() == STATE_BORDER_AVOIDANCE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_COAST);
 
     // Advance past Coast (40 ms)
     mockState.currentMillis = 2040;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_REVERSE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_REVERSE);
 
     // Advance past Reverse (300 ms) -> Pivot phase
     mockState.currentMillis = 2340;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_PIVOT);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_PIVOT);
     // Right sensor triggered -> turn left: left reverse (-200), right forward (+200)
     assert(mockState.analogPins[PIN_PWMB] == 200);
     assert(mockState.digitalPins[PIN_BIN1] == HIGH);
@@ -306,18 +312,18 @@ void test_fsm_border_avoid_both_sensors_spins() {
     mockState.analogReadValues[PIN_TCRT_RIGHT] = 250;
 
     fsmUpdate();
-    assert(fsmGetState() == STATE_BORDER_AVOID);
-    assert(fsmGetBorderAvoidPhase() == AVOID_COAST);
+    assert(fsmGetState() == STATE_BORDER_AVOIDANCE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_COAST);
 
     // Advance past Coast (40 ms)
     mockState.currentMillis = 3040;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_REVERSE);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_REVERSE);
 
     // Advance past Reverse (300 ms)
     mockState.currentMillis = 3340;
     fsmUpdate();
-    assert(fsmGetBorderAvoidPhase() == AVOID_PIVOT);
+    assert(fsmGetBorderAvoidancePhase() == BORDER_AVOIDANCE_PIVOT);
     // Both triggered -> Spin 180 degrees (200, -200)
     assert(mockState.analogPins[PIN_PWMB] == 200);
     assert(mockState.digitalPins[PIN_BIN1] == LOW);

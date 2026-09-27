@@ -23,13 +23,13 @@ enum MatchState {
     STATE_SEARCH,
     STATE_APPROACH,
     STATE_ATTACK,
-    STATE_BORDER_AVOID
+    STATE_BORDER_AVOIDANCE
 };
 
-enum BorderAvoidPhase {
-    AVOID_COAST,
-    AVOID_REVERSE,
-    AVOID_PIVOT
+enum BorderAvoidancePhase {
+    BORDER_AVOIDANCE_COAST,
+    BORDER_AVOIDANCE_REVERSE,
+    BORDER_AVOIDANCE_PIVOT
 };
 
 /**
@@ -50,9 +50,9 @@ void fsmUpdate(void);
 MatchState fsmGetState(void);
 
 /**
- * Returns current phase within STATE_BORDER_AVOID (if in STATE_BORDER_AVOID).
+ * Returns current phase within STATE_BORDER_AVOIDANCE (if in STATE_BORDER_AVOIDANCE).
  */
-BorderAvoidPhase fsmGetBorderAvoidPhase(void);
+BorderAvoidancePhase fsmGetBorderAvoidancePhase(void);
 
 /**
  * Explicitly set match state (primarily for test harness setup or resets).
