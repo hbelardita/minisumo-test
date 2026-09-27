@@ -16,11 +16,14 @@ static unsigned long avoidPhaseStartTime = 0;
 static LineSensorsReading latchedBorders = {false, false, 0, 0};
 
 static void applyAvoidancePivot(void) {
-    if (latchedBorders.leftBorder) {
-        // Left sensor triggered (or both) -> Turn right / spin 180 (left forward, right reverse)
+    if (latchedBorders.leftBorder && latchedBorders.rightBorder) {
+        // Both sensors triggered -> Spin 180 degrees (left forward, right reverse)
+        motorsSetSpeed(AVOID_PIVOT_PWM, -AVOID_PIVOT_PWM);
+    } else if (latchedBorders.leftBorder) {
+        // Left sensor triggered -> Turn right away from border (left forward, right reverse)
         motorsSetSpeed(AVOID_PIVOT_PWM, -AVOID_PIVOT_PWM);
     } else {
-        // Right sensor triggered -> Turn left (left reverse, right forward)
+        // Right sensor triggered -> Turn left away from border (left reverse, right forward)
         motorsSetSpeed(-AVOID_PIVOT_PWM, AVOID_PIVOT_PWM);
     }
 }
@@ -92,7 +95,7 @@ void fsmUpdate(void) {
         case STATE_SEARCH: {
             int dist = ultrasonicGetDistance();
             if (dist != NO_OPPONENT && dist <= OPPONENT_APPROACH_MAX_CM) {
-                if (dist <= OPPONENT_ATTACK_MAX_CM) {
+                if (dist < OPPONENT_ATTACK_MAX_CM) {
                     currentState = STATE_ATTACK;
                     motorsSetSpeed(ATTACK_PWM, ATTACK_PWM);
                 } else {
@@ -109,7 +112,7 @@ void fsmUpdate(void) {
             int dist = ultrasonicGetDistance();
             if (isOpponentLost(dist)) {
                 transitionToSearch();
-            } else if (dist <= OPPONENT_ATTACK_MAX_CM) {
+            } else if (dist < OPPONENT_ATTACK_MAX_CM) {
                 currentState = STATE_ATTACK;
                 motorsSetSpeed(ATTACK_PWM, ATTACK_PWM);
             } else {
@@ -152,8 +155,7 @@ void fsmUpdate(void) {
                 case BORDER_AVOIDANCE_PIVOT:
                     applyAvoidancePivot();
                     if (elapsed >= BORDER_PIVOT_DURATION_MS) {
-                        currentState = STATE_SEARCH;
-                        motorsSetSpeed(PIVOT_SCAN_PWM, -PIVOT_SCAN_PWM);
+                        transitionToSearch();
                     }
                     break;
             }

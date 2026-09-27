@@ -165,13 +165,24 @@ void test_fsm_approach_to_attack_and_transitions() {
     assert(mockState.analogPins[PIN_PWMA] == 255);
     assert(mockState.analogPins[PIN_PWMB] == 255);
 
-    // Opponent at boundary of 30 cm triggers ATTACK from APPROACH
+    // Opponent at boundary of 30 cm stays in APPROACH (between 30 and 65 cm)
     fsmSetState(STATE_APPROACH);
     mockState.currentMicros += 50000;
     simulateUltrasonicDistance(30);
     assert(ultrasonicGetDistance() == 30);
     fsmUpdate();
+    assert(fsmGetState() == STATE_APPROACH);
+    assert(mockState.analogPins[PIN_PWMA] == 150);
+    assert(mockState.analogPins[PIN_PWMB] == 150);
+
+    // Opponent closes distance to 29 cm (< 30 cm) -> triggers ATTACK from APPROACH
+    mockState.currentMicros += 50000;
+    simulateUltrasonicDistance(29);
+    assert(ultrasonicGetDistance() == 29);
+    fsmUpdate();
     assert(fsmGetState() == STATE_ATTACK);
+    assert(mockState.analogPins[PIN_PWMA] == 255);
+    assert(mockState.analogPins[PIN_PWMB] == 255);
 
     // Opponent lost completely while in ATTACK -> reverts to SEARCH
     mockState.currentMillis += 50;
@@ -189,7 +200,7 @@ void test_fsm_approach_to_attack_and_transitions() {
     std::cout << "[PASS] test_fsm_approach_to_attack_and_transitions\n";
 }
 
-void test_fsm_border_avoid_preemption_and_sequence_left() {
+void test_fsm_border_avoidance_preemption_and_sequence_left() {
     resetHarness();
     fsmSetState(STATE_ATTACK);
 
@@ -261,10 +272,10 @@ void test_fsm_border_avoid_preemption_and_sequence_left() {
     assert(fsmGetState() == STATE_SEARCH);
     assert(mockState.analogPins[PIN_PWMA] == 130);
     assert(mockState.analogPins[PIN_PWMB] == 130);
-    std::cout << "[PASS] test_fsm_border_avoid_preemption_and_sequence_left\n";
+    std::cout << "[PASS] test_fsm_border_avoidance_preemption_and_sequence_left\n";
 }
 
-void test_fsm_border_avoid_right_sensor_turns_left() {
+void test_fsm_border_avoidance_right_sensor_turns_left() {
     resetHarness();
     fsmSetState(STATE_SEARCH);
 
@@ -299,10 +310,10 @@ void test_fsm_border_avoid_right_sensor_turns_left() {
     mockState.currentMillis = 2560;
     fsmUpdate();
     assert(fsmGetState() == STATE_SEARCH);
-    std::cout << "[PASS] test_fsm_border_avoid_right_sensor_turns_left\n";
+    std::cout << "[PASS] test_fsm_border_avoidance_right_sensor_turns_left\n";
 }
 
-void test_fsm_border_avoid_both_sensors_spins() {
+void test_fsm_border_avoidance_both_sensors_spins() {
     resetHarness();
     fsmSetState(STATE_APPROACH);
 
@@ -338,7 +349,7 @@ void test_fsm_border_avoid_both_sensors_spins() {
     mockState.currentMillis = 3560;
     fsmUpdate();
     assert(fsmGetState() == STATE_SEARCH);
-    std::cout << "[PASS] test_fsm_border_avoid_both_sensors_spins\n";
+    std::cout << "[PASS] test_fsm_border_avoidance_both_sensors_spins\n";
 }
 
 int main() {
@@ -348,9 +359,9 @@ int main() {
     test_fsm_search_pivot_scan();
     test_fsm_search_to_approach_and_lost();
     test_fsm_approach_to_attack_and_transitions();
-    test_fsm_border_avoid_preemption_and_sequence_left();
-    test_fsm_border_avoid_right_sensor_turns_left();
-    test_fsm_border_avoid_both_sensors_spins();
+    test_fsm_border_avoidance_preemption_and_sequence_left();
+    test_fsm_border_avoidance_right_sensor_turns_left();
+    test_fsm_border_avoidance_both_sensors_spins();
     std::cout << "All FSM tests passed successfully!\n";
     return 0;
 }
